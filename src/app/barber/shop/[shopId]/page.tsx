@@ -3,13 +3,17 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { ServiceManager } from "@/components/ServiceList/ServiceManager";
 import { HoursManager } from "@/components/HoursManager/HoursManager";
+import { StaffManager } from "@/components/StaffManager/StaffManager";
+import { PhotoUploader } from "@/components/PhotoUploader/PhotoUploader";
+import { CancellationPolicyForm } from "./CancellationPolicyForm";
 
 interface ManageShopPageProps {
-  params: { shopId: string };
+  params: Promise<{ shopId: string }>;
 }
 
 export default async function ManageShopPage({ params }: ManageShopPageProps) {
   const supabase = await createClient();
+  const { shopId } = await params;
 
   const {
     data: { user },
@@ -17,14 +21,16 @@ export default async function ManageShopPage({ params }: ManageShopPageProps) {
 
   if (!user) redirect("/login");
 
-  const { data: shop } = await supabase.from("shops").select("*").eq("id", params.shopId).single();
+  const { data: shop } = await supabase.from("shops").select("*").eq("id", shopId).single();
 
   if (!shop) notFound();
   if (shop.owner_id !== user.id) redirect("/barber/dashboard");
 
-  const [{ data: services }, { data: hours }] = await Promise.all([
+  const [{ data: services }, { data: hours }, { data: staff }, { data: photos }] = await Promise.all([
     supabase.from("services").select("*").eq("shop_id", shop.id).order("created_at"),
     supabase.from("shop_hours").select("*").eq("shop_id", shop.id),
+    supabase.from("shop_staff").select("*").eq("shop_id", shop.id).order("created_at"),
+    supabase.from("shop_photos").select("*").eq("shop_id", shop.id).order("sort_order"),
   ]);
 
   return (
@@ -54,6 +60,27 @@ export default async function ManageShopPage({ params }: ManageShopPageProps) {
             Opening hours
           </h2>
           <HoursManager shopId={shop.id} initialHours={hours ?? []} />
+        </div>
+
+        <div>
+          <h2 className="section-title" style={{ fontSize: "var(--fs-lg)" }}>
+            Barbers
+          </h2>
+          <StaffManager shopId={shop.id} initialStaff={staff ?? []} />
+        </div>
+
+        <div>
+          <h2 className="section-title" style={{ fontSize: "var(--fs-lg)" }}>
+            Cancellation policy
+          </h2>
+          <CancellationPolicyForm shopId={shop.id} initialMinutes={shop.cancellation_cutoff_minutes} />
+        </div>
+
+        <div style={{ gridColumn: "1 / -1" }}>
+          <h2 className="section-title" style={{ fontSize: "var(--fs-lg)" }}>
+            Photos
+          </h2>
+          <PhotoUploader shopId={shop.id} initialPhotos={photos ?? []} />
         </div>
       </div>
     </section>

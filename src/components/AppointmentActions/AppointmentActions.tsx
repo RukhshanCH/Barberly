@@ -17,6 +17,7 @@ const NEXT_ACTIONS: Partial<Record<AppointmentStatus, { label: string; next: App
   ],
   confirmed: [
     { label: "Mark completed", next: "completed" },
+    { label: "No-show", next: "no_show" },
     { label: "Cancel", next: "cancelled" },
   ],
 };

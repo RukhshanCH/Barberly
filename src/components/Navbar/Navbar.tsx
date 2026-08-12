@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { SignOutButton } from "./SignOutButton";
+import { NotificationBell } from "@/components/NotificationBell/NotificationBell";
 
 export async function Navbar() {
   const supabase = await createClient();
@@ -39,6 +40,7 @@ export async function Navbar() {
               My appointments
             </Link>
           )}
+          {user && <NotificationBell userId={user.id} />}
         </nav>
 
         <div className="navbar__actions">

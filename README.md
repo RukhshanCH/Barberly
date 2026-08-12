@@ -121,43 +121,108 @@ multiple barbers per shop.
 
 ---
 
-## Ideas for what's next
+## Upgrade pack (v2)
 
-A few things you didn't ask for but that most appointment apps like this
-end up needing — happy to build any of these out, just say which one:
+Eight things have been added on top of the original MVP. After pulling
+these files in, run the extra SQL and you're set:
 
-- **Multiple barbers per shop.** Right now a shop has one owner and every
-  appointment is implicitly "with the shop." Real shops usually have several
-  barbers with independent schedules. This means a `shop_staff` table
-  (barber ↔ shop, since a barber could work at more than one), an optional
-  `staff_id` on `appointments`, and letting the client pick a barber (or
-  "any available") as part of booking.
-- **Notifications.** Email or SMS when a booking is made, confirmed, or
-  cancelled — a Supabase Edge Function triggered by a database webhook on
-  `appointments` insert/update is the natural fit, plus a reminder a few
-  hours before the appointment.
-- **Cancellation / no-show policies.** A cutoff (e.g. "can't cancel within
-  2 hours") and a no-show counter per client, since these directly affect a
-  shop's revenue.
-- **Photos.** Shop cover photo and a small gallery (haircut portfolio) via
-  Supabase Storage — the schema already has `cover_image_url` on `shops` to
-  build on.
-- **Reviews UI.** The `reviews` table and RLS policy already exist (a
-  client can review only their own completed appointment); it just needs a
-  form on the appointments page and a list on the shop page.
-- **Real location search.** `latitude`/`longitude` columns are on `shops`
-  already; "near me" search would mean asking for the browser's geolocation
-  and sorting/filtering by distance (Postgres' `earthdistance` extension or
-  PostGIS if you want proper radius queries).
-- **Payments / deposits.** Stripe Checkout for a booking deposit reduces
-  no-shows — usually the single highest-leverage addition for a paid
-  booking product.
-- **Waitlist.** If a client's preferred slot is taken, let them join a
-  waitlist and auto-notify them if it opens up from a cancellation.
+1. Open the Supabase SQL editor and run **`supabase/upgrades.sql`**
+   (after `supabase/schema.sql`, which you should already have run). It's
+   additive/idempotent — safe to re-run.
+2. Add the two new keys to `.env.local` (service role key, and Stripe keys
+   if you want deposits) — see the updated `.env.local.example`.
+3. `npm install` (adds the `stripe` package).
+
+### 1. Multiple barbers per shop
+A shop can now list individual barbers (`shop_staff`). Clients pick a
+named barber or "Any available" when booking; each barber's calendar is
+tracked independently via `appointments.staff_id`. Manage staff from
+**Manage shop → Barbers**.
+
+### 2. Reviews UI
+Clients get a review form under each **completed** appointment on
+`/appointments` (one review per appointment, enforced by RLS). The shop
+page lists all reviews and shows the average rating.
+
+### 3. Cancellation / no-show policy
+Each shop sets a cancellation cutoff (30 min – 24 hrs) under **Manage shop
+→ Cancellation policy**. Row Level Security itself blocks a client's
+cancel-update once an appointment is inside that window — it's enforced
+in the database, not just the UI. Barbers can mark a confirmed appointment
+**No-show**, which increments a counter on that client's profile, visible
+next to their name in the barber's appointment table.
+
+### 4. Photos
+`supabase/upgrades.sql` creates a public `shop-photos` Storage bucket with
+policies so only a shop's owner can upload/delete its files (checked by a
+`<shop_id>/<filename>` path prefix). Upload from **Manage shop → Photos**;
+photos show in a gallery on the public shop page.
+
+### 5. Real "near me" search
+The homepage has a **📍 Shops near me** button that asks the browser for
+your location, then calls a `nearby_shops(lat, lng, radius_km)` Postgres
+function (plain-SQL haversine distance — no PostGIS extension needed) and
+shows results sorted by distance.
+
+### 6. Notifications
+In-app notifications (bell icon in the navbar + `/notifications` page) work
+immediately — a database trigger writes a row whenever a booking is
+requested, confirmed, cancelled, completed, or a waitlist slot opens.
+Real email delivery is **optional**: `supabase/functions/notify-email`
+is a Supabase Edge Function you can deploy and wire to a Database Webhook
+on `notifications` inserts (see the comment at the top of that file for
+the 3-step setup with Resend). The app doesn't require it.
+
+### 7. Payments / deposits
+Set a **deposit** (Rs) on any service in **Manage shop → Services**. If a
+service has a deposit, booking it redirects the client to Stripe Checkout;
+a webhook (`/api/stripe-webhook`) marks the appointment `paid` and
+`confirmed` only after Stripe confirms payment — the browser can never
+fake this. Zero-deposit services book exactly as before, no Stripe
+involved. To enable:
+   - Add `STRIPE_SECRET_KEY` to `.env.local`.
+   - `stripe listen --forward-to localhost:3000/api/stripe-webhook` for
+     local testing (the CLI prints a webhook secret — put that in
+     `STRIPE_WEBHOOK_SECRET`), or add a hosted webhook endpoint pointing
+     at `/api/stripe-webhook` in the Stripe dashboard once deployed.
+
+### 8. Waitlist
+If a client picks a day with no open slots, they see **Join the waitlist**
+instead of an empty grid. If another client later cancels an appointment
+for that shop/day, the same database trigger that powers notifications
+finds matching waitlist entries and notifies those clients that a slot
+opened up. Barbers can see who's waiting under **Dashboard → Waitlist**.
+
+### New/changed files in this upgrade
+```
+supabase/upgrades.sql                        new tables, RLS, triggers, storage bucket
+supabase/functions/notify-email/index.ts     optional email Edge Function
+src/types/database.types.ts                  new types (staff, photos, notifications, waitlist, payments)
+src/lib/stripe.ts                            Stripe client helper
+src/lib/supabase/admin.ts                    service-role client (webhook only)
+src/app/api/create-checkout-session/route.ts creates appointment + Stripe session
+src/app/api/stripe-webhook/route.ts          confirms payment server-side
+src/app/booking/confirmation/page.tsx        post-Stripe-redirect landing page
+src/app/notifications/                       notifications inbox
+src/components/StaffManager/                 barber: add/hide/remove staff
+src/components/PhotoUploader/                barber: upload/delete shop photos
+src/components/PhotoGallery/                 public: shop photo grid
+src/components/ReviewForm/, ReviewList/      client review + public review list
+src/components/NotificationBell/             navbar unread badge
+src/components/WaitlistForm/                 join-waitlist CTA on empty days
+src/components/NearMeSearch/                 geolocation "near me" search
+src/app/barber/shop/[shopId]/CancellationPolicyForm.tsx
+Updated: BookingForm, ServiceManager, CancelAppointmentButton, Navbar,
+appointments page, barber dashboard, manage-shop page, shop detail page,
+homepage, components.css, package.json, .env.local.example
+```
+
 
 ## Deploying
 
 The app is a standard Next.js app, so it deploys as-is to Vercel (or any
-Node host): push this repo, import it in Vercel, add the two
-`NEXT_PUBLIC_SUPABASE_*` environment variables in the project settings, and
+Node host): push this repo, import it in Vercel, add the
+`NEXT_PUBLIC_SUPABASE_*`, `SUPABASE_SERVICE_ROLE_KEY`, and (if using
+deposits) `STRIPE_*` environment variables in the project settings, point
+your Stripe webhook at `https://yourdomain.com/api/stripe-webhook`, and
 update Supabase's **Site URL** / **Redirect URLs** to the deployed domain.

@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { ShopCard } from "@/components/ShopCard/ShopCard";
 import { EmptyState } from "@/components/EmptyState/EmptyState";
+import { NearMeSearch } from "@/components/NearMeSearch/NearMeSearch";
 
 interface HomePageProps {
   searchParams: { q?: string; city?: string };
@@ -53,6 +54,10 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               Search
             </button>
           </form>
+
+          <div style={{ marginTop: "1.25rem" }}>
+            <NearMeSearch />
+          </div>
         </div>
       </section>
 

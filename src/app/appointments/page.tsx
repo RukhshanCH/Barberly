@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { EmptyState } from "@/components/EmptyState/EmptyState";
 import { CancelAppointmentButton } from "@/components/Ticket/CancelAppointmentButton";
+import { ReviewForm } from "@/components/ReviewForm/ReviewForm";
 import { formatDateTime } from "@/lib/utils/date";
 
 export default async function AppointmentsPage() {
@@ -16,9 +17,19 @@ export default async function AppointmentsPage() {
 
   const { data: appointments } = await supabase
     .from("appointments")
-    .select("id, starts_at, status, shops(id, name), services(name)")
+    .select(
+      "id, starts_at, status, payment_status, deposit_amount, shops(id, name, cancellation_cutoff_minutes), services(name), shop_staff(full_name)"
+    )
     .eq("client_id", user.id)
     .order("starts_at", { ascending: false });
+
+  const completedIds = (appointments ?? []).filter((a: any) => a.status === "completed").map((a: any) => a.id);
+
+  const { data: existingReviews } = completedIds.length
+    ? await supabase.from("reviews").select("appointment_id").in("appointment_id", completedIds)
+    : { data: [] as { appointment_id: string | null }[] };
+
+  const reviewedIds = new Set((existingReviews ?? []).map((r) => r.appointment_id));
 
   return (
     <section className="l-section l-container">
@@ -32,8 +43,16 @@ export default async function AppointmentsPage() {
                 <div className="ticket__main">
                   <span className="ticket__shop">{a.shops?.name}</span>
                   <span className="ticket__service">{a.services?.name}</span>
+                  {a.shop_staff?.full_name && (
+                    <span className="ticket__time">with {a.shop_staff.full_name}</span>
+                  )}
                   <span className="ticket__time">{formatDateTime(a.starts_at)}</span>
                   <span className={`ticket__status ticket__status--${a.status}`}>{a.status}</span>
+                  {a.deposit_amount > 0 && (
+                    <span className="ticket__time">
+                      Deposit: Rs {Number(a.deposit_amount).toFixed(0)} ({a.payment_status})
+                    </span>
+                  )}
                 </div>
                 <div className="ticket__stub">TICKET</div>
               </div>
@@ -42,9 +61,18 @@ export default async function AppointmentsPage() {
                   View shop
                 </Link>
                 {(a.status === "pending" || a.status === "confirmed") && (
-                  <CancelAppointmentButton appointmentId={a.id} />
+                  <CancelAppointmentButton
+                    appointmentId={a.id}
+                    startsAt={a.starts_at}
+                    cancellationCutoffMinutes={a.shops?.cancellation_cutoff_minutes ?? 120}
+                  />
                 )}
               </div>
+              {a.status === "completed" && !reviewedIds.has(a.id) && (
+                <div style={{ marginTop: "0.75rem", padding: "1rem", border: "1px solid var(--color-line)", borderRadius: "var(--radius-md)" }}>
+                  <ReviewForm appointmentId={a.id} shopId={a.shops?.id} />
+                </div>
+              )}
             </div>
           ))}
         </div>

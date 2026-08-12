@@ -16,6 +16,7 @@ export function ServiceManager({ shopId, initialServices }: ServiceManagerProps)
   const [name, setName] = useState("");
   const [duration, setDuration] = useState(30);
   const [price, setPrice] = useState(0);
+  const [deposit, setDeposit] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -26,7 +27,7 @@ export function ServiceManager({ shopId, initialServices }: ServiceManagerProps)
 
     const { data, error: insertError } = await supabase
       .from("services")
-      .insert({ shop_id: shopId, name, duration_minutes: duration, price })
+      .insert({ shop_id: shopId, name, duration_minutes: duration, price, deposit_amount: deposit })
       .select()
       .single();
 
@@ -41,6 +42,7 @@ export function ServiceManager({ shopId, initialServices }: ServiceManagerProps)
     setName("");
     setDuration(30);
     setPrice(0);
+    setDeposit(0);
   }
 
   async function handleDelete(id: string) {
@@ -65,6 +67,9 @@ export function ServiceManager({ shopId, initialServices }: ServiceManagerProps)
             <li key={service.id} className="service-list__item">
               <div>
                 <p className="service-list__name">{service.name}</p>
+                {Number(service.deposit_amount) > 0 && (
+                  <p className="service-list__desc">Rs {Number(service.deposit_amount).toFixed(0)} deposit required</p>
+                )}
               </div>
               <div className="service-list__meta">
                 <span className="service-list__duration">{service.duration_minutes} min</span>
@@ -110,20 +115,38 @@ export function ServiceManager({ shopId, initialServices }: ServiceManagerProps)
           </div>
         </div>
 
-        <div className="form__group">
-          <label className="form__label" htmlFor="service-price">
-            Price (Rs)
-          </label>
-          <input
-            id="service-price"
-            type="number"
-            min={0}
-            className="input"
-            value={price}
-            onChange={(e) => setPrice(Number(e.target.value))}
-            required
-          />
+        <div className="form__row">
+          <div className="form__group">
+            <label className="form__label" htmlFor="service-price">
+              Price (Rs)
+            </label>
+            <input
+              id="service-price"
+              type="number"
+              min={0}
+              className="input"
+              value={price}
+              onChange={(e) => setPrice(Number(e.target.value))}
+              required
+            />
+          </div>
+          <div className="form__group">
+            <label className="form__label" htmlFor="service-deposit">
+              Deposit (Rs, optional)
+            </label>
+            <input
+              id="service-deposit"
+              type="number"
+              min={0}
+              className="input"
+              value={deposit}
+              onChange={(e) => setDeposit(Number(e.target.value))}
+            />
+          </div>
         </div>
+        <p className="form__hint">
+          Set a deposit above zero to require card payment (via Stripe) at booking time. Leave at 0 for pay-at-shop.
+        </p>
 
         {error && <p className="form__error">{error}</p>}
 

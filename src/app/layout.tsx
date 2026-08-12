@@ -8,9 +8,11 @@ export const metadata: Metadata = {
   description: "Search local barber shops and book your next appointment in a couple of taps.",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body>
         <div className="l-page">
           <Navbar />
