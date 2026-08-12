@@ -771,3 +771,70 @@
   padding-bottom: var(--space-3);
   border-bottom: 2px solid var(--color-ink);
 }
+
+/* ---------- Gallery ---------- */
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.gallery__item {
+  position: relative;
+}
+
+.gallery__image {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-line);
+}
+
+.gallery__remove {
+  position: absolute;
+  bottom: var(--space-2);
+  right: var(--space-2);
+  font-size: var(--fs-xs);
+  background: rgba(25, 21, 18, 0.75);
+  color: var(--color-white);
+  border: none;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+/* ---------- Notifications ---------- */
+.notif-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  margin-left: 4px;
+  border-radius: 999px;
+  background: var(--color-oxblood);
+  color: var(--color-white);
+  font-size: 0.62rem;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+/* ---------- Near-me search ---------- */
+.near-me {
+  display: block;
+}
+
+.near-me__distance {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  background: rgba(25, 21, 18, 0.75);
+  color: var(--color-white);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+}
