@@ -9,8 +9,10 @@ interface HomePageProps {
 
 export default async function HomePage({ searchParams }: HomePageProps) {
   const supabase = await createClient();
-  const q = searchParams.q?.trim() ?? "";
-  const city = searchParams.city?.trim() ?? "";
+  // Next 16 passes searchParams as a Promise; unwrap it before use.
+  const params = (await searchParams) ?? {};
+  const q = (params.q ?? "").toString().trim();
+  const city = (params.city ?? "").toString().trim();
 
   let query = supabase
     .from("shops")
