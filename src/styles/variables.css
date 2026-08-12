@@ -1,0 +1,53 @@
+/**
+ * Design tokens for Barberly.
+ * Palette: ink black + warm ivory paper, oxblood red as the working accent,
+ * brass gold as a rare highlight. Inspired by barbershop signage and old
+ * ticket-stub queue numbers rather than a generic SaaS look.
+ */
+:root {
+  /* Color */
+  --color-ink: #191512;
+  --color-ink-soft: #2c2622;
+  --color-paper: #f4ede1;
+  --color-paper-dim: #e9dfcd;
+  --color-oxblood: #7a2e2e;
+  --color-oxblood-dark: #5c2020;
+  --color-brass: #b08d57;
+  --color-brass-light: #d9bd8b;
+  --color-line: rgba(25, 21, 18, 0.14);
+  --color-line-strong: rgba(25, 21, 18, 0.28);
+  --color-success: #3f6b4f;
+  --color-danger: #a33b2f;
+  --color-white: #fffdf9;
+
+  /* Type */
+  --font-display: "Bebas Neue", "Oswald", "Arial Narrow", sans-serif;
+  --font-body: "Work Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", "Courier New", monospace;
+
+  --fs-xs: 0.75rem;
+  --fs-sm: 0.875rem;
+  --fs-base: 1rem;
+  --fs-md: 1.125rem;
+  --fs-lg: 1.5rem;
+  --fs-xl: 2.25rem;
+  --fs-2xl: 3.25rem;
+  --fs-3xl: 4.5rem;
+
+  /* Space */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4.5rem;
+
+  /* Shape */
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --shadow-card: 0 1px 0 var(--color-line), 0 12px 24px -18px rgba(25, 21, 18, 0.55);
+
+  --container-width: 1120px;
+}
