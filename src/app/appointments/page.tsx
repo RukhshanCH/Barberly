@@ -6,7 +6,7 @@ import { CancelAppointmentButton } from "@/components/Ticket/CancelAppointmentBu
 import { formatDateTime } from "@/lib/utils/date";
 
 export default async function AppointmentsPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const {
     data: { user },

@@ -28,7 +28,7 @@ function nextNDays(n: number): Date[] {
 
 export function BookingForm({ shopId, services, hours, isLoggedIn }: BookingFormProps) {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const days = useMemo(() => nextNDays(14), []);
   const [selectedService, setSelectedService] = useState<Service | null>(services[0] ?? null);
@@ -44,12 +44,20 @@ export function BookingForm({ shopId, services, hours, isLoggedIn }: BookingForm
   const todaysHours = hours.find((h) => h.day_of_week === selectedDay.getDay());
 
   useEffect(() => {
-    setSelectedSlot(null);
-    setError(null);
+    let cancelled = false;
 
     async function loadSlots() {
-      if (!selectedService || !todaysHours || todaysHours.is_closed || !todaysHours.open_time || !todaysHours.close_time) {
-        setSlots([]);
+      if (
+        !selectedService ||
+        !todaysHours ||
+        todaysHours.is_closed ||
+        !todaysHours.open_time ||
+        !todaysHours.close_time
+      ) {
+        if (!cancelled) {
+          setSlots([]);
+          setLoadingSlots(false);
+        }
         return;
       }
 
@@ -57,6 +65,7 @@ export function BookingForm({ shopId, services, hours, isLoggedIn }: BookingForm
 
       const dayStart = new Date(selectedDay);
       dayStart.setHours(0, 0, 0, 0);
+
       const dayEnd = new Date(selectedDay);
       dayEnd.setHours(23, 59, 59, 999);
 
@@ -67,6 +76,8 @@ export function BookingForm({ shopId, services, hours, isLoggedIn }: BookingForm
         .gte("starts_at", dayStart.toISOString())
         .lte("starts_at", dayEnd.toISOString())
         .neq("status", "cancelled");
+
+      if (cancelled) return;
 
       const computed = buildTimeSlots({
         date: selectedDay,
@@ -81,8 +92,11 @@ export function BookingForm({ shopId, services, hours, isLoggedIn }: BookingForm
     }
 
     loadSlots();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedService?.id, selectedDay, shopId]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedService, selectedDay, shopId, supabase, todaysHours]);
 
   async function handleBook() {
     if (!selectedService || !selectedSlot) return;
@@ -94,6 +108,7 @@ export function BookingForm({ shopId, services, hours, isLoggedIn }: BookingForm
     } = await supabase.auth.getUser();
 
     if (!user) {
+      setSubmitting(false);
       router.push("/login");
       return;
     }
@@ -127,7 +142,11 @@ export function BookingForm({ shopId, services, hours, isLoggedIn }: BookingForm
     <div className="l-stack">
       <div>
         <h3 className="form__label">1. Choose a service</h3>
-        <ServiceList services={services} selectedId={selectedService?.id ?? null} onSelect={setSelectedService} />
+        <ServiceList services={services} selectedId={selectedService?.id ?? null} onSelect={(service) => {
+          setSelectedService(service);
+          setSelectedSlot(null);
+          setError(null);
+        }} />
       </div>
 
       <div>
@@ -142,7 +161,11 @@ export function BookingForm({ shopId, services, hours, isLoggedIn }: BookingForm
                   ? "day-picker__day day-picker__day--active"
                   : "day-picker__day"
               }
-              onClick={() => setSelectedDay(day)}
+              onClick={() => {
+                setSelectedDay(day);
+                setSelectedSlot(null);
+                setError(null);
+              }}
             >
               <span className="day-picker__weekday">{WEEKDAY_LABELS[day.getDay()].slice(0, 3)}</span>
               <span className="day-picker__date">{day.getDate()}</span>

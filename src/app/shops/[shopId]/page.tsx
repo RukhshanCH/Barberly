@@ -9,7 +9,7 @@ interface ShopPageProps {
 }
 
 export default async function ShopPage({ params }: ShopPageProps) {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data: shop } = await supabase
     .from("shops")

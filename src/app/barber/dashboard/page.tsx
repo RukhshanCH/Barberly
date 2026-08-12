@@ -6,7 +6,7 @@ import { EmptyState } from "@/components/EmptyState/EmptyState";
 import { formatDateTime } from "@/lib/utils/date";
 
 export default async function BarberDashboardPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const {
     data: { user },

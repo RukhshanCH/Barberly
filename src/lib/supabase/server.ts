@@ -8,8 +8,8 @@ import { cookies } from "next/headers";
  * Note: not parameterized with the Database type — see the comment in
  * lib/supabase/client.ts for why.
  */
-export function createClient() {
-  const cookieStore = cookies();
+export async function createClient() {
+  const cookieStore = await cookies();
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -19,17 +19,23 @@ export function createClient() {
         getAll() {
           return cookieStore.getAll();
         },
-        setAll(cookiesToSet: { name: string; value: string; options: any }[]) {
+        setAll(
+          cookiesToSet: {
+            name: string;
+            value: string;
+            options: any;
+          }[],
+        ) {
           try {
             cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
+              cookieStore.set(name, value, options),
             );
           } catch {
             // Called from a Server Component — safe to ignore because the
-            // middleware below refreshes the session on every request.
+            // middleware refreshes the session on every request.
           }
         },
       },
-    }
+    },
   );
 }

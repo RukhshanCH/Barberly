@@ -9,7 +9,7 @@ interface ManageShopPageProps {
 }
 
 export default async function ManageShopPage({ params }: ManageShopPageProps) {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const {
     data: { user },

@@ -7,7 +7,7 @@ interface HomePageProps {
 }
 
 export default async function HomePage({ searchParams }: HomePageProps) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const q = searchParams.q?.trim() ?? "";
   const city = searchParams.city?.trim() ?? "";
 
