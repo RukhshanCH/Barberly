@@ -27,6 +27,9 @@ export function ServiceList({ services, selectedId, onSelect }: ServiceListProps
           <div>
             <p className="service-list__name">{service.name}</p>
             {service.description && <p className="service-list__desc">{service.description}</p>}
+            {Number(service.deposit_amount) > 0 && (
+              <p className="service-list__desc">Rs {Number(service.deposit_amount).toFixed(0)} deposit at booking</p>
+            )}
           </div>
           <div className="service-list__meta">
             <span className="service-list__duration">{service.duration_minutes} min</span>

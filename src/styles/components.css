@@ -626,6 +626,11 @@
   border-color: var(--color-paper-dim);
 }
 
+.ticket__status--no_show {
+  color: #e08b7d;
+  border-color: #e08b7d;
+}
+
 .ticket__stub {
   flex: 0 0 110px;
   border-left: 1px dashed rgba(244, 237, 225, 0.35);
