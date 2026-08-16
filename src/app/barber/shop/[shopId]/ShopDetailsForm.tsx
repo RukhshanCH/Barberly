@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Shop } from "@/types/database.types";
 import { Button } from "@/components/Button/Button";
+import { LocationPicker } from "@/components/LocationPicker/LocationPicker";
 
 interface ShopDetailsFormProps {
   shop: Shop;
@@ -22,6 +23,8 @@ export function ShopDetailsForm({ shop }: ShopDetailsFormProps) {
   const [phone, setPhone] = useState(shop.phone ?? "");
   const [coverImageUrl, setCoverImageUrl] = useState(shop.cover_image_url ?? "");
   const [isPublished, setIsPublished] = useState(shop.is_published);
+  const [latitude, setLatitude] = useState<number | null>(shop.latitude);
+  const [longitude, setLongitude] = useState<number | null>(shop.longitude);
 
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -72,6 +75,8 @@ export function ShopDetailsForm({ shop }: ShopDetailsFormProps) {
         phone: phone || null,
         cover_image_url: coverImageUrl || null,
         is_published: isPublished,
+        latitude,
+        longitude,
       })
       .eq("id", shop.id);
 
@@ -173,6 +178,19 @@ export function ShopDetailsForm({ shop }: ShopDetailsFormProps) {
           Phone
         </label>
         <input id="edit-phone" className="input" value={phone} onChange={(e) => setPhone(e.target.value)} />
+      </div>
+
+      <div className="form__group">
+        <label className="form__label">Location</label>
+        <LocationPicker
+          latitude={latitude}
+          longitude={longitude}
+          onChange={(lat, lng) => {
+            setLatitude(lat);
+            setLongitude(lng);
+          }}
+          addressQuery={[address, area, city].filter(Boolean).join(", ")}
+        />
       </div>
 
       <label className="l-row" style={{ fontSize: "var(--fs-sm)", gap: "0.5rem" }}>

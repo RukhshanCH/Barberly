@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/Button/Button";
+import { LocationPicker } from "@/components/LocationPicker/LocationPicker";
 
 function slugify(input: string) {
   return input
@@ -24,6 +25,8 @@ export default function NewShopPage() {
   const [city, setCity] = useState("");
   const [area, setArea] = useState("");
   const [phone, setPhone] = useState("");
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -69,6 +72,8 @@ export default function NewShopPage() {
         city,
         area: area || null,
         phone: phone || null,
+        latitude,
+        longitude,
       })
       .select()
       .single();
@@ -139,6 +144,19 @@ export default function NewShopPage() {
             Phone
           </label>
           <input id="phone" className="input" value={phone} onChange={(e) => setPhone(e.target.value)} />
+        </div>
+
+        <div className="form__group">
+          <label className="form__label">Location</label>
+          <LocationPicker
+            latitude={latitude}
+            longitude={longitude}
+            onChange={(lat, lng) => {
+              setLatitude(lat);
+              setLongitude(lng);
+            }}
+            addressQuery={[address, area, city].filter(Boolean).join(", ")}
+          />
         </div>
 
         {error && <p className="form__error">{error}</p>}
