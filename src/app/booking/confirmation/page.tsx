@@ -2,19 +2,19 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 
 interface ConfirmationPageProps {
-  searchParams: { appointment_id?: string };
+  searchParams: Promise<{ appointment_id?: string }>;
 }
 
 export default async function BookingConfirmationPage({ searchParams }: ConfirmationPageProps) {
   const supabase = await createClient();
-  const appointmentId = searchParams.appointment_id;
+  const { appointment_id: appointmentId } = await searchParams;
 
   const { data: appointment } = appointmentId
     ? await supabase
-        .from("appointments")
-        .select("id, payment_status, status, services(name), shops(name)")
-        .eq("id", appointmentId)
-        .maybeSingle()
+      .from("appointments")
+      .select("id, payment_status, status, services(name), shops(name)")
+      .eq("id", appointmentId)
+      .maybeSingle()
     : { data: null };
 
   return (

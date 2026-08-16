@@ -32,7 +32,7 @@ export async function Navbar() {
           </Link>
           {profile?.role === "barber" && (
             <Link href="/barber/dashboard" className="navbar__link">
-              Dashboard
+              My Shops
             </Link>
           )}
           {profile?.role === "client" && (

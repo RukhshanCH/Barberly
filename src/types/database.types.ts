@@ -140,6 +140,8 @@ export interface NearbyShop {
   latitude: number;
   longitude: number;
   distance_km: number;
+  avg_rating: number | null;
+  review_count: number;
 }
 
 // Minimal Database generic so `createClient<Database>()` type-checks.

@@ -60,7 +60,7 @@ export function NearMeSearch() {
           <div className="l-grid" style={{ marginTop: "1rem" }}>
             {shops.map((shop) => (
               <div key={shop.id} style={{ position: "relative" }}>
-                <ShopCard shop={shop} />
+                <ShopCard shop={shop} rating={shop.avg_rating} reviewCount={shop.review_count} />
                 <span className="near-me__distance">{shop.distance_km.toFixed(1)} km away</span>
               </div>
             ))}

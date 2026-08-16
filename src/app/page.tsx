@@ -25,6 +25,23 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
   const { data: shops } = await query;
 
+  const shopIds = (shops ?? []).map((s) => s.id);
+  const ratingByShop = new Map<string, { avg: number; count: number }>();
+
+  if (shopIds.length > 0) {
+    const { data: reviews } = await supabase.from("reviews").select("shop_id, rating").in("shop_id", shopIds);
+    const sums = new Map<string, { total: number; count: number }>();
+    for (const r of reviews ?? []) {
+      const entry = sums.get(r.shop_id) ?? { total: 0, count: 0 };
+      entry.total += r.rating;
+      entry.count += 1;
+      sums.set(r.shop_id, entry);
+    }
+    for (const [shopId, { total, count }] of sums) {
+      ratingByShop.set(shopId, { avg: total / count, count });
+    }
+  }
+
   return (
     <>
       <section className="hero">
@@ -71,7 +88,12 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         {shops && shops.length > 0 ? (
           <div className="l-grid" style={{ marginTop: "1.5rem" }}>
             {shops.map((shop) => (
-              <ShopCard key={shop.id} shop={shop} />
+              <ShopCard
+                key={shop.id}
+                shop={shop}
+                rating={ratingByShop.get(shop.id)?.avg ?? null}
+                reviewCount={ratingByShop.get(shop.id)?.count ?? 0}
+              />
             ))}
           </div>
         ) : (

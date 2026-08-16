@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/Button/Button";
 
@@ -27,8 +28,17 @@ export default function NewShopPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) router.push("/login");
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) {
+        router.push("/login");
+        return;
+      }
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", data.user.id)
+        .single();
+      if (profile?.role !== "barber") router.push("/");
     });
   }, [router, supabase]);
 
@@ -75,9 +85,10 @@ export default function NewShopPage() {
 
   return (
     <section className="l-section l-container" style={{ maxWidth: 560 }}>
-      <h1 className="section-title section-title--with-rule">List your shop</h1>
+      <h1 className="section-title section-title--with-rule">List a shop</h1>
       <p style={{ color: "var(--color-ink-soft)", marginTop: "1rem" }}>
-        Add the basics now — you can add services and hours right after.
+        Add the basics now — you can add services and hours right after. Already have a shop?
+        You can list as many as you run from <Link href="/barber/dashboard">My Shops</Link>.
       </p>
 
       <form className="form" style={{ marginTop: "1.5rem" }} onSubmit={handleSubmit}>

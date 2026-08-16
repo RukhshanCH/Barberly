@@ -6,6 +6,7 @@ import { HoursManager } from "@/components/HoursManager/HoursManager";
 import { StaffManager } from "@/components/StaffManager/StaffManager";
 import { PhotoUploader } from "@/components/PhotoUploader/PhotoUploader";
 import { CancellationPolicyForm } from "./CancellationPolicyForm";
+import { ShopDetailsForm } from "./ShopDetailsForm";
 
 interface ManageShopPageProps {
   params: Promise<{ shopId: string }>;
@@ -42,9 +43,21 @@ export default async function ManageShopPage({ params }: ManageShopPageProps) {
             {shop.name}
           </h1>
         </div>
-        <Link href={`/shops/${shop.id}`} className="btn btn--outline btn--sm">
-          View public page &rarr;
-        </Link>
+        <div className="l-row" style={{ gap: "0.5rem" }}>
+          <Link href={`/barber/shop/${shop.id}/bookings`} className="btn btn--outline btn--sm">
+            View bookings
+          </Link>
+          <Link href={`/shops/${shop.id}`} className="btn btn--outline btn--sm">
+            View public page &rarr;
+          </Link>
+        </div>
+      </div>
+
+      <div style={{ marginBottom: "3rem" }}>
+        <h2 className="section-title" style={{ fontSize: "var(--fs-lg)" }}>
+          Shop details
+        </h2>
+        <ShopDetailsForm shop={shop} />
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3rem" }}>
