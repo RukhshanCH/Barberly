@@ -25,7 +25,7 @@ export default async function ShopPage({ params }: ShopPageProps) {
 
   const [{ data: services }, { data: hours }, { data: staff }, { data: photos }, { data: reviews }, { data: userData }] =
     await Promise.all([
-      supabase.from("services").select("*").eq("shop_id", shop.id).order("price"),
+      supabase.from("services").select("*").eq("shop_id", shop.id).eq("is_active", true).order("price"),
       supabase.from("shop_hours").select("*").eq("shop_id", shop.id).order("day_of_week"),
       supabase.from("shop_staff").select("*").eq("shop_id", shop.id).eq("is_active", true),
       supabase.from("shop_photos").select("*").eq("shop_id", shop.id).order("sort_order"),

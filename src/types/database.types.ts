@@ -52,6 +52,7 @@ export interface Service {
   duration_minutes: number;
   price: number;
   deposit_amount: number;
+  is_active: boolean;
   created_at: string;
 }
 
