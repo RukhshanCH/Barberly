@@ -131,6 +131,23 @@ export interface WaitlistEntry {
   created_at: string;
 }
 
+export interface Favorite {
+  id: string;
+  client_id: string;
+  shop_id: string;
+  created_at: string;
+}
+
+export interface AppointmentServiceRow {
+  id: string;
+  appointment_id: string;
+  service_id: string;
+  price: number;
+  duration_minutes: number;
+  deposit_amount: number;
+  created_at: string;
+}
+
 export interface NearbyShop {
   id: string;
   name: string;
@@ -159,6 +176,8 @@ export interface Database {
       shop_photos: { Row: ShopPhoto; Insert: Partial<ShopPhoto>; Update: Partial<ShopPhoto> };
       notifications: { Row: NotificationRow; Insert: Partial<NotificationRow>; Update: Partial<NotificationRow> };
       waitlist_entries: { Row: WaitlistEntry; Insert: Partial<WaitlistEntry>; Update: Partial<WaitlistEntry> };
+      favorites: { Row: Favorite; Insert: Partial<Favorite>; Update: Partial<Favorite> };
+      appointment_services: { Row: AppointmentServiceRow; Insert: Partial<AppointmentServiceRow>; Update: Partial<AppointmentServiceRow> };
     };
   };
 }

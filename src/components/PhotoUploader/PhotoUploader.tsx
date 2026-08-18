@@ -22,6 +22,7 @@ export function PhotoUploader({ shopId, initialPhotos }: PhotoUploaderProps) {
     setUploading(true);
     setError(null);
 
+    // eslint-disable-next-line react-hooks/purity -- runs inside a click/change handler, not during render
     const path = `${shopId}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.\-_]/g, "")}`;
 
     const { error: uploadError } = await supabase.storage.from("shop-photos").upload(path, file, {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -19,9 +19,19 @@ export function CancelAppointmentButton({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Optimistic default (no flash for the common case where cancellation is
+  // still allowed); Date.now() is impure, so it's read in an effect rather
+  // than during render to avoid a server/client hydration mismatch.
+  const [canCancel, setCanCancel] = useState(true);
 
   const cutoffMs = cancellationCutoffMinutes * 60000;
-  const canCancel = Date.now() <= new Date(startsAt).getTime() - cutoffMs;
+
+  useEffect(() => {
+    // Date.now() can't be read during render (impure), so the only way to
+    // derive this boolean is inside an effect.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCanCancel(Date.now() <= new Date(startsAt).getTime() - cutoffMs);
+  }, [startsAt, cutoffMs]);
 
   async function handleCancel() {
     setLoading(true);

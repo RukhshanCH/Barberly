@@ -66,7 +66,7 @@ export function StaffManager({ shopId, initialStaff }: StaffManagerProps) {
     <div className="l-stack">
       {staff.length === 0 ? (
         <p style={{ color: "var(--color-ink-soft)", fontSize: "var(--fs-sm)" }}>
-          No barbers added yet — clients will just book "any available" at your shop.
+          No barbers added yet — clients will just book &ldquo;any available&rdquo; at your shop.
         </p>
       ) : (
         <ul className="service-list">

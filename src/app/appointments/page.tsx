@@ -23,6 +23,24 @@ export default async function AppointmentsPage() {
     .eq("client_id", user.id)
     .order("starts_at", { ascending: false });
 
+  const appointmentIds = (appointments ?? []).map((a: any) => a.id);
+
+  const { data: appointmentServices } = appointmentIds.length
+    ? await supabase
+      .from("appointment_services")
+      .select("appointment_id, services(name)")
+      .in("appointment_id", appointmentIds)
+    : { data: [] as any[] };
+
+  const serviceNamesByAppointment = new Map<string, string[]>();
+  for (const row of appointmentServices ?? []) {
+    const name = (row as any).services?.name;
+    if (!name) continue;
+    const list = serviceNamesByAppointment.get(row.appointment_id) ?? [];
+    list.push(name);
+    serviceNamesByAppointment.set(row.appointment_id, list);
+  }
+
   const completedIds = (appointments ?? []).filter((a: any) => a.status === "completed").map((a: any) => a.id);
 
   const { data: existingReviews } = completedIds.length
@@ -42,7 +60,9 @@ export default async function AppointmentsPage() {
               <div className="ticket">
                 <div className="ticket__main">
                   <span className="ticket__shop">{a.shops?.name}</span>
-                  <span className="ticket__service">{a.services?.name}</span>
+                  <span className="ticket__service">
+                    {(serviceNamesByAppointment.get(a.id) ?? [a.services?.name]).filter(Boolean).join(" + ")}
+                  </span>
                   {a.shop_staff?.full_name && (
                     <span className="ticket__time">with {a.shop_staff.full_name}</span>
                   )}

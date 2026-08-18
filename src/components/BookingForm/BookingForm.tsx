@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Service, ShopHour, ShopStaff } from "@/types/database.types";
 import { buildTimeSlots, WEEKDAY_LABELS } from "@/lib/utils/date";
-import { ServiceList } from "@/components/ServiceList/ServiceList";
+import { ServiceMultiSelect } from "@/components/ServiceMultiSelect/ServiceMultiSelect";
 import { WaitlistForm } from "@/components/WaitlistForm/WaitlistForm";
 import { Button } from "@/components/Button/Button";
 
@@ -37,7 +37,7 @@ export function BookingForm({ shopId, services, hours, staff, isLoggedIn }: Book
   const days = useMemo(() => nextNDays(14), []);
   const activeStaff = staff.filter((s) => s.is_active);
 
-  const [selectedService, setSelectedService] = useState<Service | null>(services[0] ?? null);
+  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>(services[0] ? [services[0].id] : []);
   const [selectedStaffId, setSelectedStaffId] = useState<string>(ANY_STAFF);
   const [selectedDay, setSelectedDay] = useState<Date>(days[0]);
   const [slots, setSlots] = useState<{ label: string; startsAt: Date; endsAt: Date }[]>([]);
@@ -48,14 +48,28 @@ export function BookingForm({ shopId, services, hours, staff, isLoggedIn }: Book
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
+  const selectedServices = services.filter((s) => selectedServiceIds.includes(s.id));
+  const totalDuration = selectedServices.reduce((sum, s) => sum + s.duration_minutes, 0);
+  const totalDeposit = selectedServices.reduce((sum, s) => sum + Number(s.deposit_amount), 0);
+
   const todaysHours = hours.find((h) => h.day_of_week === selectedDay.getDay());
 
+  function toggleService(service: Service) {
+    setSelectedServiceIds((prev) =>
+      prev.includes(service.id) ? prev.filter((id) => id !== service.id) : [...prev, service.id]
+    );
+  }
+
   useEffect(() => {
+    // Intentional: whenever the service/day/staff selection changes, any
+    // previously-picked slot is stale and must be cleared before the new
+    // slots load below.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedSlot(null);
     setError(null);
 
     async function loadSlots() {
-      if (!selectedService || !todaysHours || todaysHours.is_closed || !todaysHours.open_time || !todaysHours.close_time) {
+      if (selectedServices.length === 0 || !todaysHours || todaysHours.is_closed || !todaysHours.open_time || !todaysHours.close_time) {
         setSlots([]);
         return;
       }
@@ -86,7 +100,7 @@ export function BookingForm({ shopId, services, hours, staff, isLoggedIn }: Book
         date: selectedDay,
         openTime: todaysHours.open_time,
         closeTime: todaysHours.close_time,
-        durationMinutes: selectedService.duration_minutes,
+        durationMinutes: totalDuration,
         existing: existing ?? [],
       });
 
@@ -96,10 +110,10 @@ export function BookingForm({ shopId, services, hours, staff, isLoggedIn }: Book
 
     loadSlots();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedService?.id, selectedDay, selectedStaffId, shopId]);
+  }, [selectedServiceIds.join(","), selectedDay, selectedStaffId, shopId]);
 
   async function handleBook() {
-    if (!selectedService || !selectedSlot) return;
+    if (selectedServices.length === 0 || !selectedSlot) return;
     setSubmitting(true);
     setError(null);
 
@@ -117,7 +131,7 @@ export function BookingForm({ shopId, services, hours, staff, isLoggedIn }: Book
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         shopId,
-        serviceId: selectedService.id,
+        serviceIds: selectedServiceIds,
         staffId: selectedStaffId === ANY_STAFF ? null : selectedStaffId,
         startsAt: selectedSlot.startsAt.toISOString(),
         endsAt: selectedSlot.endsAt.toISOString(),
@@ -147,19 +161,16 @@ export function BookingForm({ shopId, services, hours, staff, isLoggedIn }: Book
   }
 
   const dayIsOpen = !!todaysHours && !todaysHours.is_closed;
-  const noSlotsAvailable = !loadingSlots && dayIsOpen && slots.length === 0;
+  const noSlotsAvailable = !loadingSlots && dayIsOpen && selectedServices.length > 0 && slots.length === 0;
 
   return (
     <div className="l-stack">
       <div>
-        <h3 className="form__label">1. Choose a service</h3>
-        <ServiceList services={services} selectedId={selectedService?.id ?? null} onSelect={setSelectedService} />
-        {selectedService && Number(selectedService.deposit_amount) > 0 && (
-          <p className="form__hint" style={{ marginTop: "0.5rem" }}>
-            This service requires a Rs {Number(selectedService.deposit_amount).toFixed(0)} deposit, paid by card at
-            checkout.
-          </p>
-        )}
+        <h3 className="form__label">1. Choose your services</h3>
+        <p className="form__hint" style={{ marginBottom: "0.5rem" }}>
+          Pick as many as you like — the total time and price update as you go.
+        </p>
+        <ServiceMultiSelect services={services} selectedIds={selectedServiceIds} onToggle={toggleService} />
       </div>
 
       {activeStaff.length > 0 && (
@@ -214,12 +225,17 @@ export function BookingForm({ shopId, services, hours, staff, isLoggedIn }: Book
 
       <div>
         <h3 className="form__label">{activeStaff.length > 0 ? "4" : "3"}. Choose a time</h3>
-        {loadingSlots && <p className="slot-grid__empty">Loading available times&hellip;</p>}
-        {!loadingSlots && !dayIsOpen && (
+        {selectedServices.length === 0 && <p className="slot-grid__empty">Select at least one service first.</p>}
+        {selectedServices.length > 0 && loadingSlots && <p className="slot-grid__empty">Loading available times&hellip;</p>}
+        {selectedServices.length > 0 && !loadingSlots && !dayIsOpen && (
           <p className="slot-grid__empty">Closed on {WEEKDAY_LABELS[selectedDay.getDay()]}s.</p>
         )}
-        {noSlotsAvailable && selectedService && (
-          <WaitlistForm shopId={shopId} serviceId={selectedService.id} date={selectedDay} />
+        {noSlotsAvailable && (
+          <WaitlistForm
+            shopId={shopId}
+            serviceId={selectedServiceIds.length === 1 ? selectedServiceIds[0] : null}
+            date={selectedDay}
+          />
         )}
         {!loadingSlots && slots.length > 0 && (
           <div className="slot-grid">
@@ -258,16 +274,16 @@ export function BookingForm({ shopId, services, hours, staff, isLoggedIn }: Book
 
       <Button
         variant="primary"
-        disabled={!selectedService || !selectedSlot || submitting}
+        disabled={selectedServices.length === 0 || !selectedSlot || submitting}
         onClick={handleBook}
       >
         {submitting
           ? "Booking..."
           : !isLoggedIn
-          ? "Log in to book"
-          : selectedService && Number(selectedService.deposit_amount) > 0
-          ? `Pay Rs ${Number(selectedService.deposit_amount).toFixed(0)} deposit & book`
-          : "Confirm appointment"}
+            ? "Log in to book"
+            : totalDeposit > 0
+              ? `Pay Rs ${totalDeposit.toFixed(0)} deposit & book`
+              : "Confirm appointment"}
       </Button>
     </div>
   );

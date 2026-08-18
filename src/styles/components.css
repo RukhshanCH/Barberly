@@ -843,3 +843,113 @@
   padding: 0.2rem 0.5rem;
   border-radius: 999px;
 }
+
+/* ---------- Favorite button ---------- */
+.favorite-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  background: var(--color-white);
+  border: 1px solid var(--color-line-strong);
+  color: var(--color-ink);
+  padding: 0.5rem 0.9rem;
+  border-radius: 999px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.favorite-btn span {
+  font-size: 1.1em;
+}
+
+.favorite-btn--active {
+  background: var(--color-oxblood);
+  border-color: var(--color-oxblood);
+  color: var(--color-white);
+}
+
+.favorite-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ---------- Multi-service selector (booking) ---------- */
+.service-multi {
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.service-multi__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-line);
+  cursor: pointer;
+}
+
+.service-multi__item:last-child {
+  border-bottom: none;
+}
+
+.service-multi__item--selected {
+  background: var(--color-paper-dim);
+}
+
+.service-multi__checkbox {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.service-multi__body {
+  flex: 1;
+}
+
+.service-multi__name {
+  font-weight: 600;
+  font-size: var(--fs-md);
+}
+
+.service-multi__desc {
+  color: var(--color-ink-soft);
+  font-size: var(--fs-sm);
+  margin-top: 2px;
+}
+
+.service-multi__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  white-space: nowrap;
+}
+
+.service-multi__duration {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--color-ink-soft);
+}
+
+.service-multi__price {
+  font-family: var(--font-mono);
+  font-size: var(--fs-md);
+  color: var(--color-oxblood);
+}
+
+.service-multi__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-ink);
+  color: var(--color-white);
+  font-size: var(--fs-sm);
+}
+
+.service-multi__summary-total {
+  font-family: var(--font-mono);
+  font-weight: 700;
+}

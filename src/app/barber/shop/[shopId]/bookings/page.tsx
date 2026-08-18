@@ -32,6 +32,24 @@ export default async function ShopBookingsPage({ params }: BookingsPageProps) {
     .eq("shop_id", shop.id)
     .order("starts_at", { ascending: true });
 
+  const appointmentIds = (appointments ?? []).map((a) => a.id);
+
+  const { data: appointmentServices } = appointmentIds.length
+    ? await supabase
+      .from("appointment_services")
+      .select("appointment_id, services(name)")
+      .in("appointment_id", appointmentIds)
+    : { data: [] as any[] };
+
+  const serviceNamesByAppointment = new Map<string, string[]>();
+  for (const row of appointmentServices ?? []) {
+    const name = (row as any).services?.name;
+    if (!name) continue;
+    const list = serviceNamesByAppointment.get(row.appointment_id) ?? [];
+    list.push(name);
+    serviceNamesByAppointment.set(row.appointment_id, list);
+  }
+
   const { data: waitlist } = await supabase
     .from("waitlist_entries")
     .select("id, preferred_date, notified_at, profiles(full_name), services(name)")
@@ -107,7 +125,9 @@ export default async function ShopBookingsPage({ params }: BookingsPageProps) {
                   )}
                 </td>
                 <td className="table__cell">{a.shop_staff?.full_name ?? "Any"}</td>
-                <td className="table__cell">{a.services?.name}</td>
+                <td className="table__cell">
+                  {(serviceNamesByAppointment.get(a.id) ?? [a.services?.name]).filter(Boolean).join(" + ")}
+                </td>
                 <td className="table__cell" style={{ fontFamily: "var(--font-mono)" }}>
                   {formatDateTime(a.starts_at)}
                 </td>

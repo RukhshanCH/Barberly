@@ -40,6 +40,11 @@ export async function Navbar() {
               My appointments
             </Link>
           )}
+          {profile?.role === "client" && (
+            <Link href="/favorites" className="navbar__link">
+              Favorites
+            </Link>
+          )}
           {user && <NotificationBell userId={user.id} />}
         </nav>
 

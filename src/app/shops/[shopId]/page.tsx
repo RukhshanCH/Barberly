@@ -4,6 +4,7 @@ import { BookingForm } from "@/components/BookingForm/BookingForm";
 import { StarRating } from "@/components/StarRating/StarRating";
 import { PhotoGallery } from "@/components/PhotoGallery/PhotoGallery";
 import { ReviewList } from "@/components/ReviewList/ReviewList";
+import { FavoriteButton } from "@/components/FavoriteButton/FavoriteButton";
 import { WEEKDAY_LABELS, formatTime } from "@/lib/utils/date";
 
 interface ShopPageProps {
@@ -32,6 +33,17 @@ export default async function ShopPage({ params }: ShopPageProps) {
       supabase.auth.getUser(),
     ]);
 
+  let isFavorited = false;
+  if (userData?.user) {
+    const { data: favorite } = await supabase
+      .from("favorites")
+      .select("id")
+      .eq("client_id", userData.user.id)
+      .eq("shop_id", shop.id)
+      .maybeSingle();
+    isFavorited = !!favorite;
+  }
+
   const avgRating =
     reviews && reviews.length > 0
       ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
@@ -45,9 +57,12 @@ export default async function ShopPage({ params }: ShopPageProps) {
             {shop.city}
             {shop.area ? ` · ${shop.area}` : ""}
           </p>
-          <h1 className="hero__title" style={{ fontSize: "clamp(2.25rem, 5vw, 3.5rem)" }}>
-            {shop.name}
-          </h1>
+          <div className="l-row l-row--between" style={{ alignItems: "flex-start" }}>
+            <h1 className="hero__title" style={{ fontSize: "clamp(2.25rem, 5vw, 3.5rem)" }}>
+              {shop.name}
+            </h1>
+            <FavoriteButton shopId={shop.id} initialFavorited={isFavorited} isLoggedIn={!!userData?.user} />
+          </div>
           {shop.description && <p className="hero__lede">{shop.description}</p>}
 
           <div className="l-row" style={{ marginTop: "1rem" }}>
