@@ -35,6 +35,11 @@ export async function Navbar() {
               My Shops
             </Link>
           )}
+          {profile?.role === "barber" && (
+            <Link href="/barber/payouts" className="navbar__link">
+              Payouts
+            </Link>
+          )}
           {profile?.role === "client" && (
             <Link href="/appointments" className="navbar__link">
               My appointments

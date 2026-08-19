@@ -27,11 +27,12 @@ export default async function ManageShopPage({ params }: ManageShopPageProps) {
   if (!shop) notFound();
   if (shop.owner_id !== user.id) redirect("/barber/dashboard");
 
-  const [{ data: services }, { data: hours }, { data: staff }, { data: photos }] = await Promise.all([
+  const [{ data: services }, { data: hours }, { data: staff }, { data: photos }, { data: ownerProfile }] = await Promise.all([
     supabase.from("services").select("*").eq("shop_id", shop.id).order("created_at"),
     supabase.from("shop_hours").select("*").eq("shop_id", shop.id),
     supabase.from("shop_staff").select("*").eq("shop_id", shop.id).order("created_at"),
     supabase.from("shop_photos").select("*").eq("shop_id", shop.id).order("sort_order"),
+    supabase.from("profiles").select("stripe_charges_enabled").eq("id", shop.owner_id).single(),
   ]);
 
   return (
@@ -65,6 +66,12 @@ export default async function ManageShopPage({ params }: ManageShopPageProps) {
           <h2 className="section-title" style={{ fontSize: "var(--fs-lg)" }}>
             Services
           </h2>
+          {!ownerProfile?.stripe_charges_enabled && (
+            <p className="form__hint" style={{ marginBottom: "0.75rem" }}>
+              Deposits need a connected payout account —{" "}
+              <Link href="/barber/payouts">set that up first</Link> if you plan to charge one.
+            </p>
+          )}
           <ServiceManager shopId={shop.id} initialServices={services ?? []} />
         </div>
 

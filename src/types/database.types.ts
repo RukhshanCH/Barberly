@@ -23,6 +23,8 @@ export interface Profile {
   phone: string | null;
   avatar_url: string | null;
   no_show_count: number;
+  stripe_account_id: string | null;
+  stripe_charges_enabled: boolean;
   created_at: string;
 }
 

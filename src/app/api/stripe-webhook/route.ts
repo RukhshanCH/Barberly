@@ -68,5 +68,20 @@ export async function POST(request: Request) {
     }
   }
 
+  // Connect: fires whenever a barber's connected account changes — most
+  // importantly, once they finish Stripe's onboarding (bank account,
+  // identity) and charges_enabled flips to true. Requires the webhook
+  // endpoint's "Listen to events on Connected accounts" option to be on
+  // (see the setup guide) — otherwise this event type never arrives, and
+  // the app falls back to checking on page load instead (see
+  // /barber/payouts).
+  if (event.type === "account.updated") {
+    const account = event.data.object as Stripe.Account;
+    await supabase
+      .from("profiles")
+      .update({ stripe_charges_enabled: !!account.charges_enabled })
+      .eq("stripe_account_id", account.id);
+  }
+
   return NextResponse.json({ received: true });
 }
