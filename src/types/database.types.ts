@@ -86,6 +86,8 @@ export interface ShopPhoto {
   created_at: string;
 }
 
+export type PayoutStatus = "unpaid" | "paid_out";
+
 export interface Appointment {
   id: string;
   shop_id: string;
@@ -98,6 +100,10 @@ export interface Appointment {
   notes: string | null;
   deposit_amount: number;
   payment_status: PaymentStatus;
+  payment_provider: string;
+  safepay_tracker_token: string | null;
+  payout_status: PayoutStatus;
+  paid_out_at: string | null;
   stripe_checkout_session_id: string | null;
   stripe_payment_intent_id: string | null;
   created_at: string;

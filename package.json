@@ -9,12 +9,12 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@sfpy/node-core": "^0.2.9",
     "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.45.4",
     "next": "^16.3.0",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8",
-    "stripe": "^16.8.0"
+    "react-dom": "^19.2.8"
   },
   "devDependencies": {
     "@types/node": "^20.14.9",

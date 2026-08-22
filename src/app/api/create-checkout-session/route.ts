@@ -1,21 +1,18 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getStripe } from "@/app/lib/stripe";
-import { PLATFORM_FEE_PERCENT } from "@/app/lib/constants";
+import { getSafepay, getSafepayPublicKey, SAFEPAY_INTENT } from "@/app/lib/safepay";
 
 /**
- * Creates a pending appointment covering one or more services + a Stripe
+ * Creates a pending appointment covering one or more services + a Safepay
  * Checkout session for their combined deposit, then hands back the
  * Checkout URL for the browser to redirect to. The appointment is only
- * ever marked "paid" by the webhook route (server-to-server), never by
- * this route or the browser, so a client can't fake payment by hitting
- * the success_url directly.
+ * ever marked "paid" by the /api/safepay-webhook route (server-to-server),
+ * never by this route or the browser, so a client can't fake payment by
+ * hitting the success_url directly.
  *
- * Deposits use Stripe Connect destination charges: the PaymentIntent is
- * created on Barberly's own account, then Stripe automatically transfers
- * the deposit — minus PLATFORM_FEE_PERCENT — to the barber's connected
- * account. The full service price is never touched by Stripe; that's
- * still settled directly between barber and client at the shop.
+ * Every deposit collects into Barberly's own single Safepay account —
+ * there's no per-barber payout split here (see supabase/upgrades-6.sql
+ * for why). Barbers are paid out manually; see /admin/payouts.
  */
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -43,7 +40,7 @@ export async function POST(request: Request) {
   }
 
   const [{ data: shop }, { data: services }] = await Promise.all([
-    supabase.from("shops").select("id, name, owner_id").eq("id", shopId).single(),
+    supabase.from("shops").select("id, name").eq("id", shopId).single(),
     supabase.from("services").select("id, name, price, duration_minutes, deposit_amount").in("id", serviceIds).eq("shop_id", shopId),
   ]);
 
@@ -55,27 +52,6 @@ export async function POST(request: Request) {
   // the "primary" one stored on appointments.service_id.
   const orderedServices = serviceIds.map((id) => services.find((s) => s.id === id)!);
   const totalDeposit = orderedServices.reduce((sum, s) => sum + (Number(s.deposit_amount) || 0), 0);
-
-  // Fail fast, before creating anything, if a deposit is required but the
-  // shop's owner hasn't finished connecting a payout account yet — rather
-  // than leave a dangling pending appointment with nowhere for the money
-  // to go.
-  let ownerStripeAccountId: string | null = null;
-  if (totalDeposit > 0) {
-    const { data: owner } = await supabase
-      .from("profiles")
-      .select("stripe_account_id, stripe_charges_enabled")
-      .eq("id", shop.owner_id)
-      .single();
-
-    if (!owner?.stripe_account_id || !owner.stripe_charges_enabled) {
-      return NextResponse.json(
-        { error: "This shop hasn't finished setting up payouts yet — please contact them or try again later." },
-        { status: 409 }
-      );
-    }
-    ownerStripeAccountId = owner.stripe_account_id;
-  }
 
   const { data: appointment, error: insertError } = await supabase
     .from("appointments")
@@ -90,6 +66,7 @@ export async function POST(request: Request) {
       status: "pending",
       deposit_amount: totalDeposit,
       payment_status: totalDeposit > 0 ? "pending" : "not_required",
+      payment_provider: "safepay",
     })
     .select("id")
     .single();
@@ -119,44 +96,65 @@ export async function POST(request: Request) {
   }
 
   try {
-    const stripe = getStripe();
+    const safepay = getSafepay();
     const origin = new URL(request.url).origin;
+    const depositServiceNames = orderedServices
+      .filter((s) => Number(s.deposit_amount) > 0)
+      .map((s) => s.name)
+      .join(" + ");
 
-    const depositServices = orderedServices.filter((s) => Number(s.deposit_amount) > 0);
-    const applicationFeeAmount = Math.round(totalDeposit * 100 * (PLATFORM_FEE_PERCENT / 100));
-
-    const session = await stripe.checkout.sessions.create({
+    // Step 1: create the payment session ("tracker").
+    const sessionResponse = await safepay.payments.session.setup({
+      merchant_api_key: getSafepayPublicKey(),
+      intent: SAFEPAY_INTENT,
       mode: "payment",
-      line_items: depositServices.map((s) => ({
-        price_data: {
-          currency: "pkr",
-          unit_amount: Math.round(Number(s.deposit_amount) * 100),
-          product_data: {
-            name: `Deposit — ${s.name} at ${shop.name}`,
-          },
-        },
-        quantity: 1,
-      })),
-      payment_intent_data: {
-        application_fee_amount: applicationFeeAmount,
-        transfer_data: {
-          destination: ownerStripeAccountId!,
-        },
+      entry_mode: "raw",
+      currency: "PKR",
+      amount: Math.round(totalDeposit * 100),
+      metadata: {
+        appointment_id: appointment.id,
+        shop_name: shop.name,
+        services: depositServiceNames,
       },
-      metadata: { appointment_id: appointment.id },
-      success_url: `${origin}/booking/confirmation?appointment_id=${appointment.id}`,
-      cancel_url: `${origin}/shops/${shopId}`,
     });
 
-    await supabase
-      .from("appointments")
-      .update({ stripe_checkout_session_id: session.id })
-      .eq("id", appointment.id);
+    const trackerToken: string | undefined = sessionResponse?.data?.tracker?.token;
+    if (!trackerToken) {
+      throw new Error("Safepay didn't return a tracker token — check SAFEPAY_INTENT matches your account.");
+    }
 
-    return NextResponse.json({ appointmentId: appointment.id, checkoutUrl: session.url });
+    // Step 2: create a short-lived auth token for the checkout page.
+    const passportResponse = await safepay.auth.passport.create();
+    const authToken: string | undefined = passportResponse?.data;
+    if (!authToken) {
+      throw new Error("Safepay didn't return an authentication token.");
+    }
+
+    // Step 3: build the hosted Checkout URL.
+    // NOTE: the SDK's return shape for this call isn't fully documented —
+    // handle both "returns the URL string directly" and "returns an
+    // object with a url field" until confirmed against a real sandbox run.
+    const checkoutResult = safepay.checkouts.payment.create({
+      tracker: trackerToken,
+      tbt: authToken,
+      environment: process.env.NODE_ENV === "production" ? "production" : "sandbox",
+      source: "hosted",
+      redirect_url: `${origin}/booking/confirmation?appointment_id=${appointment.id}&tracker=${trackerToken}`,
+      cancel_url: `${origin}/shops/${shopId}`,
+    });
+    const checkoutUrl: string | undefined =
+      typeof checkoutResult === "string" ? checkoutResult : checkoutResult?.url ?? checkoutResult?.data;
+
+    if (!checkoutUrl) {
+      throw new Error("Could not build a Safepay checkout URL — check the SDK response shape in logs.");
+    }
+
+    await supabase.from("appointments").update({ safepay_tracker_token: trackerToken }).eq("id", appointment.id);
+
+    return NextResponse.json({ appointmentId: appointment.id, checkoutUrl });
   } catch (err) {
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Stripe is not configured." },
+      { error: err instanceof Error ? err.message : "Safepay is not configured." },
       { status: 500 }
     );
   }
