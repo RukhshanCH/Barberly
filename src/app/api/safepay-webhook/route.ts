@@ -8,9 +8,9 @@ interface SafepayWebhookEvent {
   merchant_api_key: string;
   type: string;
   data: {
-    tracker: string;
+    tracker?: string;
+    order_id?: string;
     amount?: number;
-    metadata?: { appointment_id?: string };
     [key: string]: unknown;
   };
 }
@@ -47,28 +47,57 @@ export async function POST(request: Request) {
 
   const event = JSON.parse(rawBody) as SafepayWebhookEvent;
   const supabase = createAdminClient();
-  const appointmentId = event.data?.metadata?.appointment_id;
 
-  if (event.type === "payment.succeeded" && appointmentId) {
-    await supabase
+  // We stopped sending custom `metadata` (Safepay rejected it — see
+  // create-checkout-session/route.ts), so the appointment is identified
+  // by whichever of these actually comes back in the payload. order_id is
+  // the one we're most confident in (it's the field we passed ourselves
+  // at checkout time); tracker is a fallback since we already stored
+  // safepay_tracker_token on the appointment when the session was
+  // created. If NEITHER of these matches what you see in a real webhook
+  // delivery (check Safepay Dashboard → Developers → Endpoints → your
+  // endpoint → recent deliveries for the actual payload), that's the
+  // next thing to fix here.
+  const appointmentId = event.data?.order_id;
+  const trackerToken = event.data?.tracker;
+
+  async function findAppointmentId(): Promise<string | null> {
+    if (appointmentId) return appointmentId;
+    if (!trackerToken) return null;
+    const { data } = await supabase
       .from("appointments")
-      .update({
-        payment_status: "paid",
-        status: "confirmed",
-        safepay_tracker_token: event.data.tracker,
-      })
-      .eq("id", appointmentId);
+      .select("id")
+      .eq("safepay_tracker_token", trackerToken)
+      .maybeSingle();
+    return data?.id ?? null;
   }
 
-  if (event.type === "payment.failed" && appointmentId) {
-    await supabase
-      .from("appointments")
-      .update({ status: "cancelled", payment_status: "failed" })
-      .eq("id", appointmentId);
+  if (event.type === "payment.succeeded") {
+    const id = await findAppointmentId();
+    if (id) {
+      await supabase
+        .from("appointments")
+        .update({
+          payment_status: "paid",
+          status: "confirmed",
+          ...(trackerToken ? { safepay_tracker_token: trackerToken } : {}),
+        })
+        .eq("id", id);
+    }
   }
 
-  if (event.type === "payment.refunded" && appointmentId) {
-    await supabase.from("appointments").update({ payment_status: "refunded" }).eq("id", appointmentId);
+  if (event.type === "payment.failed") {
+    const id = await findAppointmentId();
+    if (id) {
+      await supabase.from("appointments").update({ status: "cancelled", payment_status: "failed" }).eq("id", id);
+    }
+  }
+
+  if (event.type === "payment.refunded") {
+    const id = await findAppointmentId();
+    if (id) {
+      await supabase.from("appointments").update({ payment_status: "refunded" }).eq("id", id);
+    }
   }
 
   // Acknowledge quickly regardless — Safepay retries on non-2xx, and

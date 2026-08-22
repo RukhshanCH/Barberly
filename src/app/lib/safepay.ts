@@ -38,7 +38,7 @@ export function getSafepay() {
   // Safepay's SDK exports a factory function you call with (secretKey,
   // options) — not a class you `new` — per their docs:
   //   const safepay = require('@sfpy/node-core')('KEY', { authType, host })
-  return Safepay(key, { authType: "secret", host });
+  return new Safepay(key, { authType: "secret", host });
 }
 
 export function getSafepayPublicKey() {

@@ -12,7 +12,9 @@
     "@sfpy/node-core": "^0.2.9",
     "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.45.4",
+    "axios": "^1.7.7",
     "next": "^16.3.0",
+    "qs": "^6.13.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },

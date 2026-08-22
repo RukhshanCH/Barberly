@@ -98,12 +98,18 @@ export async function POST(request: Request) {
   try {
     const safepay = getSafepay();
     const origin = new URL(request.url).origin;
-    const depositServiceNames = orderedServices
-      .filter((s) => Number(s.deposit_amount) > 0)
-      .map((s) => s.name)
-      .join(" + ");
 
     // Step 1: create the payment session ("tracker").
+    //
+    // NOTE ON METADATA: an earlier version of this route sent a custom
+    // `metadata: { appointment_id, shop_name, services }` object here,
+    // which Safepay's API rejected with "unsupported meta key services" —
+    // the package's types don't document an allow-list (session.setup's
+    // params are typed as `any`), so rather than guess again at which
+    // custom keys ARE allowed, this uses `order_id` instead: it's a
+    // confirmed real field (typed on checkout.createCheckoutUrl below),
+    // so it's the one place we're confident is safe to put our own
+    // reference in.
     const sessionResponse = await safepay.payments.session.setup({
       merchant_api_key: getSafepayPublicKey(),
       intent: SAFEPAY_INTENT,
@@ -111,42 +117,39 @@ export async function POST(request: Request) {
       entry_mode: "raw",
       currency: "PKR",
       amount: Math.round(totalDeposit * 100),
-      metadata: {
-        appointment_id: appointment.id,
-        shop_name: shop.name,
-        services: depositServiceNames,
-      },
+      order_id: appointment.id,
     });
 
+    // sessionResponse is typed `any` by the SDK, so this exact path is
+    // unverified — if trackerToken comes back undefined, temporarily
+    // add `console.log(JSON.stringify(sessionResponse))` right above this
+    // line to see the real shape and fix the path below.
     const trackerToken: string | undefined = sessionResponse?.data?.tracker?.token;
     if (!trackerToken) {
       throw new Error("Safepay didn't return a tracker token — check SAFEPAY_INTENT matches your account.");
     }
 
     // Step 2: create a short-lived auth token for the checkout page.
-    const passportResponse = await safepay.auth.passport.create();
+    const passportResponse = await safepay.client.passport.create();
     const authToken: string | undefined = passportResponse?.data;
     if (!authToken) {
       throw new Error("Safepay didn't return an authentication token.");
     }
 
-    // Step 3: build the hosted Checkout URL.
-    // NOTE: the SDK's return shape for this call isn't fully documented —
-    // handle both "returns the URL string directly" and "returns an
-    // object with a url field" until confirmed against a real sandbox run.
-    const checkoutResult = safepay.checkouts.payment.create({
-      tracker: trackerToken,
+    // Step 3: build the hosted Checkout URL. Confirmed synchronous —
+    // createCheckoutUrl returns a plain string, not a Promise.
+    const checkoutUrl = safepay.checkout.createCheckoutUrl({
+      env: process.env.NODE_ENV === "production" ? "production" : "sandbox",
       tbt: authToken,
-      environment: process.env.NODE_ENV === "production" ? "production" : "sandbox",
+      tracker: trackerToken,
       source: "hosted",
+      order_id: appointment.id,
       redirect_url: `${origin}/booking/confirmation?appointment_id=${appointment.id}&tracker=${trackerToken}`,
       cancel_url: `${origin}/shops/${shopId}`,
     });
-    const checkoutUrl: string | undefined =
-      typeof checkoutResult === "string" ? checkoutResult : checkoutResult?.url ?? checkoutResult?.data;
 
     if (!checkoutUrl) {
-      throw new Error("Could not build a Safepay checkout URL — check the SDK response shape in logs.");
+      throw new Error("Could not build a Safepay checkout URL.");
     }
 
     await supabase.from("appointments").update({ safepay_tracker_token: trackerToken }).eq("id", appointment.id);
